@@ -111,7 +111,7 @@ with col2:
         st.session_state.mush_count = max(0, st.session_state.mush_count - 1)
 
 # ==========================================
-# 演算法：定位目前進度，並往後推算直到破關
+# 演算法：定位目前進度
 # ==========================================
 mush_remaining = st.session_state.mush_count
 current_step_idx = 0
@@ -132,17 +132,24 @@ while current_step_idx < len(all_steps) and mush_remaining > 0:
             break
 
 # ==========================================
-# 輸出連續日期的列表 (直到所有任務結束)
+# 日期校準與連續列表輸出
 # ==========================================
 if current_step_idx >= len(all_steps):
     st.success("🎉 3 輪任務已全數完成！")
 else:
-    current_date = datetime.today().date() + timedelta(days=1)
+    # 取得台灣時間 (UTC+8) 避免雲端伺服器時差
+    tw_now = datetime.utcnow() + timedelta(hours=8)
+    today_date = tw_now.date()
+    
+    # 鎖定 6/1 為最早起始日
+    event_start = datetime(2026, 6, 1).date()
+    current_date = max(today_date, event_start)
+    
     idx = current_step_idx
     mush_done_in_step = current_step_mush_done
     day = 0
     
-    # 只要還有任務沒解完，就會繼續列出每一天
+    # 列出剩餘的排程
     while idx < len(all_steps):
         daily_quota = 3
         action_counter = 1
