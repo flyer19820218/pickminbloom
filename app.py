@@ -3,79 +3,57 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 # ==========================================
-# 頁面與基本設定
+# 頁面與基本設定 (極簡雙按鈕版)
 # ==========================================
 st.set_page_config(page_title="6月打菇任務台", layout="centered", page_icon="🍄")
 
 st.markdown("""
     <style>
-    /* 1. 拔除外圍所有空白 */
+    /* 拔除外圍空白，極致壓縮上下空間 */
     .block-container {
-        padding-top: 0.2rem !important;
+        padding-top: 0.5rem !important;
         padding-bottom: 0rem !important;
-        padding-left: 0.4rem !important;
-        padding-right: 0.4rem !important;
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
     }
     #MainMenu, header, footer {visibility: hidden;}
     
-    /* 2. 標題與進度緊湊樣式 */
+    /* 標題與進度樣式 */
     .line-title {
-        font-size: 13pt !important;
-        font-weight: bold;
-        text-align: center;
-        margin-bottom: 0px;
-        color: #222222;
-    }
-    .line-progress {
-        font-size: 13pt !important;
+        font-size: 14pt !important;
         font-weight: bold;
         text-align: center;
         margin-bottom: 2px;
+        color: #222222;
+    }
+    .line-progress {
+        font-size: 14pt !important;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 6px;
         color: #FF4B4B;
     }
     
-    /* 🔥 3. 解決 9:16 螢幕溢出：精算寬度扣除間距 */
-    div[data-testid="stHorizontalBlock"] {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        width: 100% !important;
-        gap: 0.4rem !important; /* 安全間距 */
-    }
-    div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
-        /* 精準扣除 gap 佔用的空間，確保剛好 100% 不爆版 */
-        width: calc(50% - 0.2rem) !important; 
-        flex: 1 1 calc(50% - 0.2rem) !important;
-        min-width: calc(50% - 0.2rem) !important;
-    }
-    
-    /* 按鈕大小與間距壓縮 */
-    .element-container { margin-bottom: 0rem !important; }
-    .stButton { margin-bottom: 0.1rem !important; }
-    .stButton button { 
-        height: 2.5rem !important; 
-        min-height: 2.5rem !important; 
-        padding: 0rem !important; 
-        font-size: 14px !important;
-    }
-    
-    /* 4. 任務框緊湊化 */
+    /* 任務框與文字緊湊化 */
     .stAlert {
-        padding: 0.4rem 0.5rem !important;
-        margin-bottom: 0.2rem !important;
+        padding: 0.5rem 0.6rem !important;
+        margin-bottom: 0.4rem !important;
     }
     div[data-testid="stMarkdownContainer"] p {
         font-size: 11pt !important;
-        line-height: 1.3 !important;
+        line-height: 1.4 !important;
         margin-bottom: 0 !important;
     }
+    
+    /* 按鈕稍微加高方便點擊 */
+    .stButton button { min-height: 2.5rem !important; }
     </style>
 """, unsafe_allow_html=True)
 
 st.markdown('<div class="line-title">🍄 6月打菇任務台</div>', unsafe_allow_html=True)
 
 # ==========================================
-# 核心資料庫
+# 核心資料庫 (嚴格順序標示)
 # ==========================================
 task_db = [
     {"stage": "1-4", "req_mush": 2, "pre_tasks": "先解：①走1000步 ➔ ②培育2隻 ➔ ③完成2探險 ➔ ④種1000花 (此階才可打菇)"},
@@ -105,26 +83,17 @@ if "mush_count" not in st.session_state:
 
 st.markdown(f'<div class="line-progress">累計已打： {st.session_state.mush_count} 顆</div>', unsafe_allow_html=True)
 
-# 🛠️ 第一行按鈕
-row1_col1, row1_col2 = st.columns(2)
-with row1_col1:
+# 🛠️ 只有 +1 和 -1 的雙按鈕排版 (保證不斷行)
+col1, col2 = st.columns(2)
+with col1:
     if st.button("➕ 增加 1 顆", use_container_width=True):
         st.session_state.mush_count = min(117, st.session_state.mush_count + 1)
-with row1_col2:
+with col2:
     if st.button("➖ 扣除 1 顆", use_container_width=True):
         st.session_state.mush_count = max(0, st.session_state.mush_count - 1)
 
-# 🛠️ 第二行按鈕
-row2_col1, row2_col2 = st.columns(2)
-with row2_col1:
-    if st.button("🚀 推進 1 天", use_container_width=True):
-        st.session_state.mush_count = min(117, st.session_state.mush_count + 3)
-with row2_col2:
-    if st.button("🔄 進度歸零", use_container_width=True):
-        st.session_state.mush_count = 0
-
 # ==========================================
-# 演算法
+# 演算法：條理分明的任務清單
 # ==========================================
 def get_detailed_schedule(daily_quota, total_mushrooms, start_date):
     task_idx = 0
@@ -180,7 +149,7 @@ def get_detailed_schedule(daily_quota, total_mushrooms, start_date):
 # ==========================================
 # UI 介面：任務清單輸出
 # ==========================================
-st.markdown("---", unsafe_allow_html=True)
+st.markdown("---")
 tomorrow = datetime.today().date() + timedelta(days=1)
 detailed_instructions = get_detailed_schedule(3, st.session_state.mush_count, tomorrow)
 
