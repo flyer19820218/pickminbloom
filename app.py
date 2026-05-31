@@ -5,10 +5,10 @@ from datetime import datetime, timedelta
 # ==========================================
 # 頁面與基本設定
 # ==========================================
-st.set_page_config(page_title="6月極限打菇系統 (5人戰隊版)", layout="centered", page_icon="🍄")
+st.set_page_config(page_title="6月極限打菇任務台", layout="centered", page_icon="🍄")
 
-st.title("🍄 6月極限打菇系統 (5人戰隊版)")
-st.markdown("特戰小組集結！各自登入，獨立追蹤進度。")
+st.title("🍄 6月打菇極簡任務台")
+st.markdown("不用登入！隨點隨看。請用下方按鈕調整您目前的進度：")
 
 # ==========================================
 # 核心資料庫：6月完整任務表 
@@ -38,50 +38,35 @@ for r in range(1, 4):
         })
 
 # ==========================================
-# 帳號與進度系統 (支援 5 人小隊)
+# UI 介面：手機版大按鈕進度控制
 # ==========================================
-squad_members = ["阿虎", "彥君", "小綠人", "阿芳", "阿原"]
+# 初始化暫存變數
+if "mush_count" not in st.session_state:
+    st.session_state.mush_count = 0
 
-# 初始化暫存資料庫 (做為 Google Sheets 的備用機制)
-if "users_db" not in st.session_state:
-    st.session_state.users_db = {member: 0 for member in squad_members}
+st.markdown("---")
+st.subheader("⚙️ 目前進度微調")
 
-# ---------------------------------------------------------
-# 💡 未來串接 Google Sheets 的核心函數 (目前為模擬狀態)
-# 當您在 Streamlit Cloud 設定好 secrets 後，可以將這裡解開
-# ---------------------------------------------------------
-def load_data():
-    # 實際運作時，這裡會透過 st.connection("gsheets") 讀取您的 Excel
-    # df = conn.read(spreadsheet="您的網址")
-    return st.session_state.users_db
+# 顯示目前巨大的數字
+st.markdown(f"<h3 style='text-align: center; color: #FF4B4B;'>目前累計已摧毀： {st.session_state.mush_count} 顆</h3>", unsafe_allow_html=True)
 
-def save_data(user, new_progress):
-    # 實際運作時，這裡會透過 conn.update() 寫回您的 Excel
-    st.session_state.users_db[user] = new_progress
+# 手機友善的大按鈕排版
+col1, col2, col3, col4 = st.columns(4)
 
-# 載入當前所有人的資料
-current_db = load_data()
+with col1:
+    if st.button("➖ 扣 1 顆", use_container_width=True):
+        st.session_state.mush_count = max(0, st.session_state.mush_count - 1)
+with col2:
+    if st.button("➕ 加 1 顆", use_container_width=True):
+        st.session_state.mush_count = min(117, st.session_state.mush_count + 1)
+with col3:
+    if st.button("➕ 加 3 顆", use_container_width=True):
+        st.session_state.mush_count = min(117, st.session_state.mush_count + 3)
+with col4:
+    if st.button("🔄 歸零", use_container_width=True):
+        st.session_state.mush_count = 0
 
-with st.sidebar:
-    st.header("👤 戰隊登入")
-    current_user = st.selectbox("請選擇您的代號：", squad_members)
-    
-    st.markdown("---")
-    st.header("⚙️ 回報戰果")
-    st.write(f"目前操作兵力：**{current_user}**")
-    
-    # 讀取該成員目前的進度
-    user_progress = st.number_input(
-        "👉 修改『累計已摧毀』的蘑菇總數", 
-        min_value=0, max_value=117, 
-        value=current_db[current_user], 
-        step=1
-    )
-    
-    # 如果數字有變動，觸發存檔
-    if user_progress != current_db[current_user]:
-        save_data(current_user, user_progress)
-        st.success("💾 進度已更新！")
+st.markdown("---")
 
 # ==========================================
 # 演算法：推算未來 3 天的懶人包
@@ -142,12 +127,10 @@ def get_detailed_schedule(daily_quota, total_mushrooms, start_date):
 # ==========================================
 # UI 介面：主畫面輸出
 # ==========================================
-st.subheader(f"📝 {current_user} 的專屬行動指令")
+st.subheader("📝 接下來 3 天的行動指令")
 
 tomorrow = datetime.today().date() + timedelta(days=1)
-user_current_mushrooms = current_db[current_user]
-
-detailed_instructions = get_detailed_schedule(3, user_current_mushrooms, tomorrow)
+detailed_instructions = get_detailed_schedule(3, st.session_state.mush_count, tomorrow)
 
 for item in detailed_instructions:
     if isinstance(item, tuple): 
