@@ -1,17 +1,17 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # ==========================================
 # 頁面與基本設定
 # ==========================================
-st.set_page_config(page_title="6月極限打菇排程", layout="centered", page_icon="🍄")
+st.set_page_config(page_title="6月極限打菇懶人包", layout="centered", page_icon="🍄")
 
-st.title("🍄 6月動態打菇排程模擬器")
-st.markdown("手機適配版：支援動態進度調整，隨時校準任務軌道。")
+st.title("🍄 6月打菇極簡懶人包")
+st.markdown("自動抓取日期，滑桿微調進度，每天照著指令點就對了。")
 
 # ==========================================
-# 核心資料與演算法：動態打菇排程
+# 核心資料與演算法
 # ==========================================
 base_tasks = [
     {"stage": "1-4", "req": 2},
@@ -27,18 +27,17 @@ base_tasks = [
     {"stage": "4-4", "req": 5},
 ]
 
-# 建立 3 輪的完整任務清單
+# 建立 3 輪完整清單 (共 117 顆菇)
 all_tasks = []
 for r in range(1, 4):
     for t in base_tasks:
-        all_tasks.append({"round": r, "stage": f"第 {r} 輪 [{t['stage']}]", "req": t["req"]})
+        all_tasks.append({"round": r, "stage": f"第{r}輪 {t['stage']}", "req": t["req"]})
 
-def calculate_dynamic_schedule(daily_quota, total_destroyed_so_far, current_date):
-    # 1. 計算目前卡在哪個任務
+def get_lazy_schedule(daily_quota, total_destroyed_so_far, current_date):
     task_idx = 0
     accumulated = 0
-    mushrooms_left_in_current = 0
     
+    # 尋找目前進度卡在哪
     for idx, task in enumerate(all_tasks):
         if total_destroyed_so_far >= accumulated + task["req"]:
             accumulated += task["req"]
@@ -47,80 +46,71 @@ def calculate_dynamic_schedule(daily_quota, total_destroyed_so_far, current_date
             mushrooms_left_in_current = task["req"] - (total_destroyed_so_far - accumulated)
             break
             
-    # 如果已經全部打完
     if task_idx >= len(all_tasks):
-        return pd.DataFrame([{"日期": "N/A", "狀態": "🎉 3 輪任務已全數完成！"}])
+        return ["🎉 恭喜！3 輪任務已全數完成！"]
 
-    # 2. 從今天開始推算未來的排程
-    schedule = []
-    end_of_month = datetime(2026, 6, 30).date()
+    # 推算未來 5 天的懶人包 (不用看太遠，看近 5 天就好)
+    schedule_list = []
     
-    while current_date <= end_of_month and task_idx < len(all_tasks):
+    for i in range(5):
         daily_log = []
         quota_left = daily_quota
         
         while quota_left > 0 and task_idx < len(all_tasks):
             if mushrooms_left_in_current <= quota_left:
-                daily_log.append(f"打 {mushrooms_left_in_current} 顆解完 {all_tasks[task_idx]['stage']}")
+                daily_log.append(f"打 {mushrooms_left_in_current} 菇解完【{all_tasks[task_idx]['stage']}】")
                 quota_left -= mushrooms_left_in_current
                 task_idx += 1
                 if task_idx < len(all_tasks):
                     mushrooms_left_in_current = all_tasks[task_idx]["req"]
             else:
-                daily_log.append(f"打 {quota_left} 顆推進 {all_tasks[task_idx]['stage']} (剩 {mushrooms_left_in_current - quota_left} 顆)")
+                daily_log.append(f"打 {quota_left} 菇推進【{all_tasks[task_idx]['stage']}】(剩{mushrooms_left_in_current - quota_left}菇)")
                 mushrooms_left_in_current -= quota_left
                 quota_left = 0
                 
-        schedule.append({
-            "日期": current_date.strftime("%m/%d"),
-            "排程分配": " ➕ ".join(daily_log)
-        })
-        current_date += timedelta(days=1)
+        # 組裝白話文懶人包
+        date_str = current_date.strftime("%m/%d")
+        day_label = "今天" if i == 0 else f"第 {i+1} 日"
+        action_str = " ➕ ".join(daily_log)
         
-    return pd.DataFrame(schedule)
-
-# ==========================================
-# 側邊欄設定 (動態參數輸入)
-# ==========================================
-with st.sidebar:
-    st.header("⚙️ 動態校準設定")
-    today = st.date_input("今天日期", value=datetime(2026, 6, 1).date())
-    daily_quota = st.number_input("今日可用蘑菇額度", min_value=1, max_value=10, value=3)
-    
-    st.markdown("---")
-    st.markdown("### 📊 進度回報")
-    st.info("如果不小心多打或少打，直接修改下方的總數，系統會自動重新規劃後續天數。")
-    total_destroyed = st.number_input("本月『累計已摧毀』總數", min_value=0, max_value=120, value=0)
-
-# ==========================================
-# 主畫面
-# ==========================================
-# 使用 tabs 讓手機滑動更直覺
-tab1, tab2 = st.tabs(["📅 動態排程表", "⏱️ 每日行動 SOP"])
-
-with tab1:
-    st.subheader("未來排程推算")
-    st.markdown(f"**目前累計：{total_destroyed} 顆** (系統已自動扣除並重算)")
-    
-    df_schedule = calculate_dynamic_schedule(daily_quota, total_destroyed, today)
-    st.dataframe(df_schedule, use_container_width=True, hide_index=True)
-
-with tab2:
-    st.subheader("手機版行動檢核表")
-    st.markdown("出門在外單手點選，避免遺漏關鍵步驟：")
-    
-    with st.expander("🌞 階段一：晨跑解鎖 (點擊展開)", expanded=True):
-        st.checkbox("確認當下任務需求 (防白打)")
-        st.checkbox("完成步數與日常種花")
-        st.checkbox("特種兵餵精華 (逼上1心)")
-        st.checkbox("出戰部隊頂著花進場")
+        schedule_list.append(f"**{day_label} ({date_str})：** {action_str} ✨ *(記得先解完步數/種花等其他任務)*")
         
-    with st.expander("⚔️ 階段二：日間打菇 (點擊展開)"):
-        st.checkbox("確認結算時間 < 12 小時")
-        st.checkbox("嚴防跨日 (23:59 前必須結算)")
-        st.checkbox("依排程精準消耗額度")
+        current_date += pd.Timedelta(days=1)
         
-    with st.expander("🌙 階段三：夜間散步 (點擊展開)"):
-        st.checkbox("催熟巨大花苞")
-        st.checkbox("榨取水果換取花蜜")
-        st.checkbox("花蜜集中投餵主力部隊")
+    return schedule_list
+
+# ==========================================
+# UI 介面：控制台
+# ==========================================
+st.subheader("⚙️ 進度微調控制台")
+
+# 自動抓取今天日期，也可以手動改
+today_date = st.date_input("自動判定今天日期 (可點擊修改)", value=datetime.today().date())
+
+# 滑桿設計：直覺拖拉進度
+total_mushrooms = st.slider(
+    "👉 目前『累計已摧毀』的蘑菇總數 (進度delay直接滑動調整)", 
+    min_value=0, max_value=117, value=0, step=1
+)
+
+st.markdown("---")
+
+# ==========================================
+# UI 介面：懶人包輸出
+# ==========================================
+st.subheader("📝 接下來 5 天行動指令")
+
+# 產生懶人包
+lazy_instructions = get_lazy_schedule(3, total_mushrooms, today_date)
+
+# 用漂亮的 info 框框顯示
+for instruction in lazy_instructions:
+    st.info(instruction)
+
+st.markdown("---")
+with st.expander("💡 晨跑戰前提醒 (點開看)"):
+    st.markdown("""
+    1. **看指令再打：** 上面寫打幾顆就打幾顆，嚴格扣在任務上。
+    2. **步數/種花優先：** 務必先用每天那 5000 朵的跑量把前置任務解完，蘑菇數量才會計算！
+    3. **特殊精華準備：** 打開遊戲先給 13 隻新兵餵好餵滿。
+    """)
