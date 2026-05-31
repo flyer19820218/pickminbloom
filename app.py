@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 # ==========================================
-# 頁面與基本設定 (LINE 極致壓縮版)
+# 頁面與基本設定
 # ==========================================
 st.set_page_config(page_title="6月打菇任務台", layout="centered", page_icon="🍄")
 
@@ -18,7 +18,7 @@ st.markdown("""
     }
     #MainMenu, header, footer {visibility: hidden;}
     
-    /* 2. 標題與進度極度緊湊 */
+    /* 2. 標題與進度緊湊樣式 */
     .line-title {
         font-size: 13pt !important;
         font-weight: bold;
@@ -34,22 +34,30 @@ st.markdown("""
         color: #FF4B4B;
     }
     
-    /* 3. 強制手機版並排，絕對不折疊成4行，且殺掉間距 */
-    @media (max-width: 600px) {
-        div[data-testid="stHorizontalBlock"] {
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
-            gap: 0.2rem !important;
-        }
-        div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
-            width: 50% !important;
-            min-width: 50% !important;
-        }
+    /* 🔥 3. 解決 9:16 螢幕溢出：精算寬度扣除間距 */
+    div[data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        width: 100% !important;
+        gap: 0.4rem !important; /* 安全間距 */
     }
-    /* 消除按鈕與元件的上下間距 */
+    div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+        /* 精準扣除 gap 佔用的空間，確保剛好 100% 不爆版 */
+        width: calc(50% - 0.2rem) !important; 
+        flex: 1 1 calc(50% - 0.2rem) !important;
+        min-width: calc(50% - 0.2rem) !important;
+    }
+    
+    /* 按鈕大小與間距壓縮 */
     .element-container { margin-bottom: 0rem !important; }
     .stButton { margin-bottom: 0.1rem !important; }
-    .stButton button { min-height: 2.2rem !important; padding: 0rem !important; }
+    .stButton button { 
+        height: 2.5rem !important; 
+        min-height: 2.5rem !important; 
+        padding: 0rem !important; 
+        font-size: 14px !important;
+    }
     
     /* 4. 任務框緊湊化 */
     .stAlert {
@@ -67,7 +75,7 @@ st.markdown("""
 st.markdown('<div class="line-title">🍄 6月打菇任務台</div>', unsafe_allow_html=True)
 
 # ==========================================
-# 核心資料庫 (嚴格順序標示)
+# 核心資料庫
 # ==========================================
 task_db = [
     {"stage": "1-4", "req_mush": 2, "pre_tasks": "先解：①走1000步 ➔ ②培育2隻 ➔ ③完成2探險 ➔ ④種1000花 (此階才可打菇)"},
@@ -97,25 +105,26 @@ if "mush_count" not in st.session_state:
 
 st.markdown(f'<div class="line-progress">累計已打： {st.session_state.mush_count} 顆</div>', unsafe_allow_html=True)
 
-# 🛠️ 強制 2 行的按鈕排版
-row1_c1, row1_c2 = st.columns(2)
-with row1_c1:
+# 🛠️ 第一行按鈕
+row1_col1, row1_col2 = st.columns(2)
+with row1_col1:
     if st.button("➕ 增加 1 顆", use_container_width=True):
         st.session_state.mush_count = min(117, st.session_state.mush_count + 1)
-with row1_c2:
+with row1_col2:
     if st.button("➖ 扣除 1 顆", use_container_width=True):
         st.session_state.mush_count = max(0, st.session_state.mush_count - 1)
 
-row2_c1, row2_c2 = st.columns(2)
-with row2_c1:
+# 🛠️ 第二行按鈕
+row2_col1, row2_col2 = st.columns(2)
+with row2_col1:
     if st.button("🚀 推進 1 天", use_container_width=True):
         st.session_state.mush_count = min(117, st.session_state.mush_count + 3)
-with row2_c2:
+with row2_col2:
     if st.button("🔄 進度歸零", use_container_width=True):
         st.session_state.mush_count = 0
 
 # ==========================================
-# 演算法：條理分明的任務清單
+# 演算法
 # ==========================================
 def get_detailed_schedule(daily_quota, total_mushrooms, start_date):
     task_idx = 0
@@ -145,13 +154,13 @@ def get_detailed_schedule(daily_quota, total_mushrooms, start_date):
             pre_tasks = current_task["pre_tasks"]
             
             if mush_left <= quota_left:
-                daily_actions.append(f"**任務({action_counter})： {current_task['stage_name']}** ➔ 打 **{mush_left}** 菇解完\n\n*(確認進度：{pre_tasks})*")
+                daily_actions.append(f"**任務( {action_counter} )： {current_task['stage_name']}** ➔ 打 **{mush_left}** 菇解完\n\n*(確認進度：{pre_tasks})*")
                 quota_left -= mush_left
                 task_idx += 1
                 if task_idx < len(all_tasks):
                     mush_left = all_tasks[task_idx]["req_mush"]
             else:
-                daily_actions.append(f"**任務({action_counter})： {current_task['stage_name']}** ➔ 打 **{quota_left}** 菇推進\n\n*(確認進度：{pre_tasks})*")
+                daily_actions.append(f"**任務( {action_counter} )： {current_task['stage_name']}** ➔ 打 **{quota_left}** 菇推進\n\n*(確認進度：{pre_tasks})*")
                 mush_left -= quota_left
                 quota_left = 0
                 
@@ -171,7 +180,7 @@ def get_detailed_schedule(daily_quota, total_mushrooms, start_date):
 # ==========================================
 # UI 介面：任務清單輸出
 # ==========================================
-st.markdown("---")
+st.markdown("---", unsafe_allow_html=True)
 tomorrow = datetime.today().date() + timedelta(days=1)
 detailed_instructions = get_detailed_schedule(3, st.session_state.mush_count, tomorrow)
 
