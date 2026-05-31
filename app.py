@@ -3,12 +3,58 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 # ==========================================
-# 頁面與基本設定
+# 頁面與基本設定 (開啟手機優化版)
 # ==========================================
-st.set_page_config(page_title="6月極限打菇任務台", layout="centered", page_icon="🍄")
+st.set_page_config(page_title="6月打菇任務台", layout="centered", page_icon="🍄")
 
-st.title("🍄 6月打菇極簡任務台")
-st.markdown("不用登入！隨點隨看。請用下方按鈕調整您目前的進度：")
+# ⚡ LINE 內建瀏覽器空間極致優化 CSS
+st.markdown("""
+    <style>
+    /* 1. 拔除頂部與兩側無用空白 */
+    .block-container {
+        padding-top: 0.4rem !important;
+        padding-bottom: 0rem !important;
+        padding-left: 0.6rem !important;
+        padding-right: 0.6rem !important;
+    }
+    /* 2. 隱藏 Streamlit 雲端自帶的黑線與選單 */
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
+    
+    /* 3. 自訂緊湊型文字樣式 */
+    .line-title {
+        font-size: 14pt !important;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 2px;
+        color: #222222;
+    }
+    .line-progress {
+        font-size: 13pt !important;
+        font-weight: bold;
+        text-align: center;
+        margin-bottom: 6px;
+        color: #FF4B4B;
+    }
+    /* 4. 壓縮元件之間的間距 */
+    .element-container {
+        margin-bottom: 0.2rem !important;
+    }
+    /* 5. 讓提示框更緊湊，省出垂直空間 */
+    .stAlert {
+        padding: 0.4rem 0.6rem !important;
+        margin-bottom: 0.3rem !important;
+    }
+    div[data-testid="stMarkdownContainer"] p {
+        font-size: 10pt !important;
+        line-height: 1.3 !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# 用超省空間的 HTML 渲染標題與進度
+st.markdown('<div class="line-title">🍄 6月打菇極簡任務台</div>', unsafe_allow_html=True)
 
 # ==========================================
 # 核心資料庫：6月完整任務表 
@@ -32,41 +78,29 @@ for r in range(1, 4):
     for t in task_db:
         all_tasks.append({
             "round": r, 
-            "stage_name": f"第{r}輪 【{t['stage']}】", 
+            "stage_name": f"第{r}輪【{t['stage']}】", 
             "req_mush": t["req_mush"],
             "pre_tasks": t["pre_tasks"]
         })
 
-# ==========================================
-# UI 介面：手機版大按鈕進度控制
-# ==========================================
-# 初始化暫存變數
+# 初始化進度計數器
 if "mush_count" not in st.session_state:
     st.session_state.mush_count = 0
 
-st.markdown("---")
-st.subheader("⚙️ 目前進度微調")
+st.markdown(f'<div class="line-progress">累計已打： {st.session_state.mush_count} 顆</div>', unsafe_allow_html=True)
 
-# 顯示目前巨大的數字
-st.markdown(f"<h3 style='text-align: center; color: #FF4B4B;'>目前累計已摧毀： {st.session_state.mush_count} 顆</h3>", unsafe_allow_html=True)
-
-# 手機友善的大按鈕排版
-col1, col2, col3, col4 = st.columns(4)
-
+# 🛠️ 手機友善大按鈕區 (2×2 緊湊排版，防手震、防誤觸)
+col1, col2 = st.columns(2)
 with col1:
-    if st.button("➖ 扣 1 顆", use_container_width=True):
+    if st.button("➕ 增加 1 顆", use_container_width=True):
+        st.session_state.mush_count = min(117, st.session_state.mush_count + 1)
+    if st.button("➖ 扣除 1 顆", use_container_width=True):
         st.session_state.mush_count = max(0, st.session_state.mush_count - 1)
 with col2:
-    if st.button("➕ 加 1 顆", use_container_width=True):
-        st.session_state.mush_count = min(117, st.session_state.mush_count + 1)
-with col3:
-    if st.button("➕ 加 3 顆", use_container_width=True):
+    if st.button("🚀 推進 1 天 (+3)", use_container_width=True):
         st.session_state.mush_count = min(117, st.session_state.mush_count + 3)
-with col4:
-    if st.button("🔄 歸零", use_container_width=True):
+    if st.button("🔄 進度歸零", use_container_width=True):
         st.session_state.mush_count = 0
-
-st.markdown("---")
 
 # ==========================================
 # 演算法：推算未來 3 天的懶人包
@@ -84,7 +118,7 @@ def get_detailed_schedule(daily_quota, total_mushrooms, start_date):
             break
             
     if task_idx >= len(all_tasks):
-        return [("🎉 任務全制霸！", "3 輪任務已全數完成！特戰小組可以休息了。")]
+        return [("🎉 完賽", "3 輪任務全數消滅！")]
 
     schedule_list = []
     current_date = start_date
@@ -106,38 +140,41 @@ def get_detailed_schedule(daily_quota, total_mushrooms, start_date):
                 if task_idx < len(all_tasks):
                     mush_left = all_tasks[task_idx]["req_mush"]
             else:
-                daily_actions.append(f"打 {quota_left} 菇推進 **{current_task['stage_name']}** (還剩{mush_left - quota_left}菇)")
+                daily_actions.append(f"打 {quota_left} 菇推進 **{current_task['stage_name']}** (剩{mush_left - quota_left}菇)")
                 mush_left -= quota_left
                 quota_left = 0
                 
         date_str = current_date.strftime("%m/%d")
-        day_label = f"第 {i+1} 日"
+        day_label = "今天" if i == 0 else f"明/後天預報"
         action_str = " ➕ ".join(daily_actions)
         pre_task_str = "、".join(list(daily_pre_tasks))
         
         schedule_list.append({
-            "title": f"**{day_label} ({date_str}) 指令**",
+            "title": f"📍 **{day_label} ({date_str}) 指令**",
             "action": action_str,
-            "warning": f"⚠️ **進場前必須完成：** {pre_task_str}"
+            "warning": f"⚠️ **前置必做：** {pre_task_str}"
         })
         current_date += timedelta(days=1)
         
     return schedule_list
 
 # ==========================================
-# UI 介面：主畫面輸出
+# UI 介面：任務卡片輸出
 # ==========================================
-st.subheader("📝 接下來 3 天的行動指令")
-
 tomorrow = datetime.today().date() + timedelta(days=1)
 detailed_instructions = get_detailed_schedule(3, st.session_state.mush_count, tomorrow)
 
-for item in detailed_instructions:
+# 渲染指令
+for idx, item in enumerate(detailed_instructions):
     if isinstance(item, tuple): 
         st.success(item[1])
     else:
-        with st.container():
+        # 第一天（今天）用標準顯示，後續天數用折疊面板收起來，保證首屏不爆掉
+        if idx == 0:
             st.markdown(item["title"])
-            st.info(f"🍄 **打菇目標：** {item['action']}")
-            st.error(item["warning"]) 
-            st.markdown("---")
+            st.info(f"🍄 {item['action']}")
+            st.error(item["warning"])
+        else:
+            with st.expander(f"🔮 點擊查看 {item['title']}", expanded=False):
+                st.info(f"🍄 {item['action']}")
+                st.error(item["warning"])
