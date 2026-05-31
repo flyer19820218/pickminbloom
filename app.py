@@ -1,24 +1,21 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime, timedelta
 
 # ==========================================
-# 頁面與基本設定 (極簡雙按鈕版)
+# 頁面與基本設定 (LINE 極致壓縮版)
 # ==========================================
-st.set_page_config(page_title="6月打菇任務台", layout="centered", page_icon="🍄")
+st.set_page_config(page_title="6月打菇順序台", layout="centered", page_icon="🍄")
 
 st.markdown("""
     <style>
-    /* 拔除外圍空白，極致壓縮上下空間 */
     .block-container {
-        padding-top: 0.5rem !important;
+        padding-top: 0.4rem !important;
         padding-bottom: 0rem !important;
         padding-left: 0.5rem !important;
         padding-right: 0.5rem !important;
     }
     #MainMenu, header, footer {visibility: hidden;}
     
-    /* 標題與進度樣式 */
     .line-title {
         font-size: 14pt !important;
         font-weight: bold;
@@ -30,52 +27,67 @@ st.markdown("""
         font-size: 14pt !important;
         font-weight: bold;
         text-align: center;
-        margin-bottom: 6px;
+        margin-bottom: 4px;
         color: #FF4B4B;
     }
     
-    /* 任務框與文字緊湊化 */
-    .stAlert {
+    /* 緊湊任務排版 */
+    .task-card {
+        background-color: #F0F2F6;
         padding: 0.5rem 0.6rem !important;
+        border-radius: 4px;
         margin-bottom: 0.4rem !important;
+        border-left: 5px solid #1E88E5;
     }
-    div[data-testid="stMarkdownContainer"] p {
-        font-size: 11pt !important;
-        line-height: 1.4 !important;
-        margin-bottom: 0 !important;
+    .block-card {
+        background-color: #FFEBEE;
+        padding: 0.5rem 0.6rem !important;
+        border-radius: 4px;
+        margin-bottom: 0.4rem !important;
+        border-left: 5px solid #E53935;
     }
     
-    /* 按鈕稍微加高方便點擊 */
-    .stButton button { min-height: 2.5rem !important; }
+    .element-container { margin-bottom: 0rem !important; }
+    .stButton button { min-height: 2.5rem !important; font-size: 14px !important; }
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="line-title">🍄 6月打菇任務台</div>', unsafe_allow_html=True)
+st.markdown('<div class="line-title">🍄 6月活動嚴格線性任務台</div>', unsafe_allow_html=True)
 
 # ==========================================
-# 核心資料庫 (嚴格順序標示)
+# 核心資料庫：將每一小步徹底拆解（含無菇阻擋關卡）
 # ==========================================
-task_db = [
-    {"stage": "1-4", "req_mush": 2, "pre_tasks": "先解：①走1000步 ➔ ②培育2隻 ➔ ③完成2探險 ➔ ④種1000花 (此階才可打菇)"},
-    {"stage": "2-2", "req_mush": 2, "pre_tasks": "先解：①走2000步 ➔ ②種1000花 (此階才可打菇)"},
-    {"stage": "2-3", "req_mush": 3, "pre_tasks": "本階並行：培育3隻皮克敏"},
-    {"stage": "2-4", "req_mush": 4, "pre_tasks": "本階並行：種植500朵風鈴草"},
-    {"stage": "3-2", "req_mush": 3, "pre_tasks": "先解：①走2000步+2探險 ➔ ②種1500白鳶尾花 (此階才可打菇)"},
-    {"stage": "3-3", "req_mush": 4, "pre_tasks": "本階並行：種植1500朵紅鳶尾花"},
-    {"stage": "3-4", "req_mush": 5, "pre_tasks": "本階並行：種1500黃鳶尾花 + 2000紅風鈴草"},
-    {"stage": "4-1", "req_mush": 3, "pre_tasks": "本階並行：完成3個探險"},
-    {"stage": "4-2", "req_mush": 4, "pre_tasks": "本階並行：種植2000朵白風鈴草"},
-    {"stage": "4-3", "req_mush": 4, "pre_tasks": "本階並行：種2000黃風鈴草 + 1000藍鳶尾花"},
-    {"stage": "4-4", "req_mush": 5, "pre_tasks": "本階並行：種2000紅風鈴草 + 2500鳶尾花(不限色)"},
+# mush = 該步驟需要的蘑菇數。如果是 0，代表是純粹的前置阻擋關卡。
+linear_tasks = [
+    {"id": "1-1", "mush": 0, "text": "走 1000 步"},
+    {"id": "1-2", "mush": 0, "text": "培育 2 隻皮克敏"},
+    {"id": "1-3", "mush": 0, "text": "完成 2 個探險"},
+    {"id": "1-4", "mush": 2, "text": "種植 1000 朵花"},
+    
+    {"id": "2-1", "mush": 0, "text": "走 2000 步"},
+    {"id": "2-2", "mush": 2, "text": "種植 1000 朵花"},
+    {"id": "2-3", "mush": 3, "text": "培育 3 隻皮克敏"},
+    {"id": "2-4", "mush": 4, "text": "種植 500 朵風鈴草"},
+    
+    {"id": "3-1", "mush": 0, "text": "走 2000 步 + 完成 2 個探險"},
+    {"id": "3-2", "mush": 3, "text": "種植 1500 朵白色鳶尾花"},
+    {"id": "3-3", "mush": 4, "text": "種植 1500 朵紅色鳶尾花"},
+    {"id": "3-4", "mush": 5, "text": "種植 1500 朵黃色鳶尾花 + 種植 2000 朵紅色風鈴草"},
+    
+    {"id": "4-1", "mush": 3, "text": "完成 3 個探險"},
+    {"id": "4-2", "mush": 4, "text": "種植 2000 朵白色風鈴草"},
+    {"id": "4-3", "mush": 4, "text": "種植 2000 朵黃色風鈴草 + 種植 1000 朵藍色鳶尾花"},
+    {"id": "4-4", "mush": 5, "text": "種植 2000 朵紅色風鈴草 + 種植 2500 朵鳶尾花(不限色)"},
 ]
 
-all_tasks = []
+# 展開為 3 輪完整流水線
+all_steps = []
 for r in range(1, 4):
-    for t in task_db:
-        all_tasks.append({
-            "stage_name": f"第{r}輪 【{t['stage']}】", 
-            "req_mush": t["req_mush"],
-            "pre_tasks": t["pre_tasks"]
+    for t in linear_tasks:
+        all_steps.append({
+            "stage_label": f"第{r}輪 STAGE {t['id']}",
+            "mush_req": t["mush"],
+            "task_text": t["text"]
         })
 
 if "mush_count" not in st.session_state:
@@ -83,7 +95,7 @@ if "mush_count" not in st.session_state:
 
 st.markdown(f'<div class="line-progress">累計已打： {st.session_state.mush_count} 顆</div>', unsafe_allow_html=True)
 
-# 🛠️ 只有 +1 和 -1 的雙按鈕排版 (保證不斷行)
+# 🛠️ 絕不跑版的雙按鈕
 col1, col2 = st.columns(2)
 with col1:
     if st.button("➕ 增加 1 顆", use_container_width=True):
@@ -93,75 +105,79 @@ with col2:
         st.session_state.mush_count = max(0, st.session_state.mush_count - 1)
 
 # ==========================================
-# 演算法：條理分明的任務清單
+# 線性進度推算演算法
 # ==========================================
-def get_detailed_schedule(daily_quota, total_mushrooms, start_date):
-    task_idx = 0
-    accumulated = 0
-    
-    for idx, task in enumerate(all_tasks):
-        if total_mushrooms >= accumulated + task["req_mush"]:
-            accumulated += task["req_mush"]
+mush_remaining = st.session_state.mush_count
+current_step_idx = 0
+current_step_mush_done = 0
+
+# 用目前累計的蘑菇數，去扣除線性關卡
+while current_step_idx < len(all_steps) and mush_remaining > 0:
+    step = all_steps[current_step_idx]
+    if step["mush_req"] == 0:
+        # 純任務關卡不消耗蘑菇計數，直接遞進
+        current_step_idx += 1
+    else:
+        req = step["mush_req"]
+        if mush_remaining >= req:
+            mush_remaining -= req
+            current_step_idx += 1
         else:
-            task_idx = idx
-            mush_left = task["req_mush"] - (total_mushrooms - accumulated)
+            current_step_mush_done = mush_remaining
+            mush_remaining = 0
             break
-            
-    if task_idx >= len(all_tasks):
-        return [("🎉 完賽", ["3 輪任務全數消滅！"])]
-
-    schedule_list = []
-    current_date = start_date
-    
-    for i in range(3):
-        quota_left = daily_quota
-        daily_actions = []
-        action_counter = 1
-        
-        while quota_left > 0 and task_idx < len(all_tasks):
-            current_task = all_tasks[task_idx]
-            pre_tasks = current_task["pre_tasks"]
-            
-            if mush_left <= quota_left:
-                daily_actions.append(f"**任務( {action_counter} )： {current_task['stage_name']}** ➔ 打 **{mush_left}** 菇解完\n\n*(確認進度：{pre_tasks})*")
-                quota_left -= mush_left
-                task_idx += 1
-                if task_idx < len(all_tasks):
-                    mush_left = all_tasks[task_idx]["req_mush"]
-            else:
-                daily_actions.append(f"**任務( {action_counter} )： {current_task['stage_name']}** ➔ 打 **{quota_left}** 菇推進\n\n*(確認進度：{pre_tasks})*")
-                mush_left -= quota_left
-                quota_left = 0
-                
-            action_counter += 1
-                
-        date_str = current_date.strftime("%m/%d")
-        day_label = "今天" if i == 0 else f"明/後天"
-        
-        schedule_list.append({
-            "title": f"📍 **{day_label} ({date_str})**",
-            "actions": daily_actions
-        })
-        current_date += timedelta(days=1)
-        
-    return schedule_list
 
 # ==========================================
-# UI 介面：任務清單輸出
+# 輸出當前的執行清單 (預測接下來 3 顆菇的額度流向)
 # ==========================================
 st.markdown("---")
-tomorrow = datetime.today().date() + timedelta(days=1)
-detailed_instructions = get_detailed_schedule(3, st.session_state.mush_count, tomorrow)
 
-for idx, item in enumerate(detailed_instructions):
-    if isinstance(item, tuple): 
-        st.success(item[1][0])
-    else:
-        if idx == 0:
-            st.markdown(item["title"])
-            for action_text in item["actions"]:
-                st.info(action_text)
+if current_step_idx >= len(all_steps):
+    st.success("🎉 3 輪任務全數消滅！")
+else:
+    st.markdown("**📢 您目前的應做順序清單：**")
+    
+    projected_quota = 3  # 以今日 3 次免費額度來規劃
+    idx = current_step_idx
+    mush_done_in_step = current_step_mush_done
+    action_counter = 1
+    
+    while idx < len(all_steps) and projected_quota > 0:
+        step = all_steps[idx]
+        
+        if step["mush_req"] == 0:
+            # 紅色卡片：代表純任務阻擋，絕對不能打菇
+            st.markdown(f"""
+                <div class="block-card">
+                    <b>任務({action_counter})： {step['stage_label']}</b><br>
+                    🛑 <b>純任務阻擋！此時絕對不可打菇（打了不算進度）</b><br>
+                    👉 必須先單獨解完：{step['task_text']}
+                </div>
+            """, unsafe_allow_html=True)
+            idx += 1
         else:
-            with st.expander(f"🔮 查看 {item['title']}", expanded=False):
-                for action_text in item["actions"]:
-                    st.info(action_text)
+            req_left = step["mush_req"] - mush_done_in_step
+            
+            if req_left <= projected_quota:
+                # 藍色卡片：可以打菇
+                st.markdown(f"""
+                    <div class="task-card">
+                        <b>任務({action_counter})： {step['stage_label']}</b><br>
+                        🍄 需打 <b>{req_left}</b> 顆蘑菇解完<br>
+                        👉 同時需完成：{step['task_text']}
+                    </div>
+                """, unsafe_allow_html=True)
+                projected_quota -= req_left
+                idx += 1
+                mush_done_in_step = 0
+            else:
+                st.markdown(f"""
+                    <div class="task-card">
+                        <b>任務({action_counter})： {step['stage_label']}</b><br>
+                        🍄 需打 <b>{projected_quota}</b> 顆蘑菇推進 (該關還剩 {req_left - projected_quota} 菇)<br>
+                        👉 同時需完成：{step['task_text']}
+                    </div>
+                """, unsafe_allow_html=True)
+                projected_quota = 0
+                
+        action_counter += 1
