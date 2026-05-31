@@ -5,35 +5,28 @@ from datetime import datetime, timedelta
 # ==========================================
 # 頁面與基本設定
 # ==========================================
-st.set_page_config(page_title="6月極限打菇系統 (雙人版)", layout="centered", page_icon="🍄")
+st.set_page_config(page_title="6月極限打菇系統 (5人戰隊版)", layout="centered", page_icon="🍄")
 
-st.title("🍄 6月極限打菇系統 (含完整任務)")
-st.markdown("內建多帳號進度分離，並整合所有步數/種花前置任務，防呆防錯。")
+st.title("🍄 6月極限打菇系統 (5人戰隊版)")
+st.markdown("特戰小組集結！各自登入，獨立追蹤進度。")
 
 # ==========================================
-# 核心資料庫：6月完整任務表 (包含所有雜項)
+# 核心資料庫：6月完整任務表 
 # ==========================================
-# req_mush = 需要打的蘑菇數量
-# pre_tasks = 打蘑菇前/同時必須完成的其他任務
 task_db = [
-    # STAGE 1
     {"stage": "1-4", "req_mush": 2, "pre_tasks": ["走 1000 步", "培育 2 隻皮克敏", "完成 2 個探險", "種植 1000 朵花"]},
-    # STAGE 2
     {"stage": "2-2", "req_mush": 2, "pre_tasks": ["走 2000 步", "種植 1000 朵花"]},
     {"stage": "2-3", "req_mush": 3, "pre_tasks": ["培育 3 隻皮克敏"]},
     {"stage": "2-4", "req_mush": 4, "pre_tasks": ["種植 500 朵風鈴草"]},
-    # STAGE 3
     {"stage": "3-2", "req_mush": 3, "pre_tasks": ["走 2000 步", "完成 2 個探險", "種植 1500 朵白色鳶尾花"]},
     {"stage": "3-3", "req_mush": 4, "pre_tasks": ["種植 1500 朵紅色鳶尾花"]},
     {"stage": "3-4", "req_mush": 5, "pre_tasks": ["種植 1500 朵黃色鳶尾花", "種植 2000 朵紅色風鈴草"]},
-    # STAGE 4
     {"stage": "4-1", "req_mush": 3, "pre_tasks": ["完成 3 個探險"]},
     {"stage": "4-2", "req_mush": 4, "pre_tasks": ["種植 2000 朵白色風鈴草"]},
     {"stage": "4-3", "req_mush": 4, "pre_tasks": ["種植 2000 朵黃色風鈴草", "種植 1000 朵藍色鳶尾花"]},
     {"stage": "4-4", "req_mush": 5, "pre_tasks": ["種植 2000 朵紅色風鈴草", "種植 2500 朵鳶尾花(不限色)"]},
 ]
 
-# 擴充為 3 輪
 all_tasks = []
 for r in range(1, 4):
     for t in task_db:
@@ -45,32 +38,50 @@ for r in range(1, 4):
         })
 
 # ==========================================
-# 帳號與進度系統 (Session State 模擬資料庫)
+# 帳號與進度系統 (支援 5 人小隊)
 # ==========================================
+squad_members = ["阿虎", "彥君", "小綠人", "阿芳", "阿原"]
+
+# 初始化暫存資料庫 (做為 Google Sheets 的備用機制)
 if "users_db" not in st.session_state:
-    st.session_state.users_db = {
-        "指揮官 (老師)": {"mushrooms_destroyed": 0},
-        "副官 (太太)": {"mushrooms_destroyed": 0}
-    }
+    st.session_state.users_db = {member: 0 for member in squad_members}
+
+# ---------------------------------------------------------
+# 💡 未來串接 Google Sheets 的核心函數 (目前為模擬狀態)
+# 當您在 Streamlit Cloud 設定好 secrets 後，可以將這裡解開
+# ---------------------------------------------------------
+def load_data():
+    # 實際運作時，這裡會透過 st.connection("gsheets") 讀取您的 Excel
+    # df = conn.read(spreadsheet="您的網址")
+    return st.session_state.users_db
+
+def save_data(user, new_progress):
+    # 實際運作時，這裡會透過 conn.update() 寫回您的 Excel
+    st.session_state.users_db[user] = new_progress
+
+# 載入當前所有人的資料
+current_db = load_data()
 
 with st.sidebar:
-    st.header("👤 帳號登入與切換")
-    # 切換使用者
-    current_user = st.selectbox("請選擇目前操作的帳號：", list(st.session_state.users_db.keys()))
+    st.header("👤 戰隊登入")
+    current_user = st.selectbox("請選擇您的代號：", squad_members)
     
     st.markdown("---")
-    st.header("⚙️ 進度更新")
-    st.write(f"目前操作：**{current_user}**")
+    st.header("⚙️ 回報戰果")
+    st.write(f"目前操作兵力：**{current_user}**")
     
-    # 綁定該使用者的進度
+    # 讀取該成員目前的進度
     user_progress = st.number_input(
-        "👉 修改『累計已打菇』總數", 
+        "👉 修改『累計已摧毀』的蘑菇總數", 
         min_value=0, max_value=117, 
-        value=st.session_state.users_db[current_user]["mushrooms_destroyed"], 
+        value=current_db[current_user], 
         step=1
     )
-    # 存檔回模擬資料庫
-    st.session_state.users_db[current_user]["mushrooms_destroyed"] = user_progress
+    
+    # 如果數字有變動，觸發存檔
+    if user_progress != current_db[current_user]:
+        save_data(current_user, user_progress)
+        st.success("💾 進度已更新！")
 
 # ==========================================
 # 演算法：推算未來 3 天的懶人包
@@ -79,7 +90,6 @@ def get_detailed_schedule(daily_quota, total_mushrooms, start_date):
     task_idx = 0
     accumulated = 0
     
-    # 尋找目前進度
     for idx, task in enumerate(all_tasks):
         if total_mushrooms >= accumulated + task["req_mush"]:
             accumulated += task["req_mush"]
@@ -89,20 +99,18 @@ def get_detailed_schedule(daily_quota, total_mushrooms, start_date):
             break
             
     if task_idx >= len(all_tasks):
-        return [("🎉 恭喜！", "3 輪任務已全數完成！不愧是南屯區最強戰力。")]
+        return [("🎉 任務全制霸！", "3 輪任務已全數完成！特戰小組可以休息了。")]
 
     schedule_list = []
     current_date = start_date
     
-    # 只顯示未來 3 天，保持畫面乾淨
     for i in range(3):
         quota_left = daily_quota
         daily_actions = []
-        daily_pre_tasks = set() # 收集當天需要解的所有前置任務
+        daily_pre_tasks = set()
         
         while quota_left > 0 and task_idx < len(all_tasks):
             current_task = all_tasks[task_idx]
-            # 把前置任務加進當天的 To-Do
             for pt in current_task["pre_tasks"]:
                 daily_pre_tasks.add(pt)
                 
@@ -119,8 +127,6 @@ def get_detailed_schedule(daily_quota, total_mushrooms, start_date):
                 
         date_str = current_date.strftime("%m/%d")
         day_label = f"第 {i+1} 日"
-        
-        # 組合當天任務
         action_str = " ➕ ".join(daily_actions)
         pre_task_str = "、".join(list(daily_pre_tasks))
         
@@ -129,7 +135,6 @@ def get_detailed_schedule(daily_quota, total_mushrooms, start_date):
             "action": action_str,
             "warning": f"⚠️ **進場前必須完成：** {pre_task_str}"
         })
-        
         current_date += timedelta(days=1)
         
     return schedule_list
@@ -137,21 +142,19 @@ def get_detailed_schedule(daily_quota, total_mushrooms, start_date):
 # ==========================================
 # UI 介面：主畫面輸出
 # ==========================================
-st.subheader(f"📝 {current_user} 的行動指令")
+st.subheader(f"📝 {current_user} 的專屬行動指令")
 
-# 自動從「明天」開始起算
 tomorrow = datetime.today().date() + timedelta(days=1)
-user_current_mushrooms = st.session_state.users_db[current_user]["mushrooms_destroyed"]
+user_current_mushrooms = current_db[current_user]
 
 detailed_instructions = get_detailed_schedule(3, user_current_mushrooms, tomorrow)
 
-# 渲染精緻的 UI 卡片
 for item in detailed_instructions:
-    if isinstance(item, tuple): # 破關狀態
+    if isinstance(item, tuple): 
         st.success(item[1])
     else:
         with st.container():
             st.markdown(item["title"])
             st.info(f"🍄 **打菇目標：** {item['action']}")
-            st.error(item["warning"]) # 用紅色框提醒前置任務，絕對不會忘！
+            st.error(item["warning"]) 
             st.markdown("---")
