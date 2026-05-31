@@ -111,7 +111,7 @@ with col2:
         st.session_state.mush_count = max(0, st.session_state.mush_count - 1)
 
 # ==========================================
-# 演算法：定位目前進度，並往後推算 4 天
+# 演算法：定位目前進度，並往後推算直到破關
 # ==========================================
 mush_remaining = st.session_state.mush_count
 current_step_idx = 0
@@ -132,7 +132,7 @@ while current_step_idx < len(all_steps) and mush_remaining > 0:
             break
 
 # ==========================================
-# 輸出連續日期的列表
+# 輸出連續日期的列表 (直到所有任務結束)
 # ==========================================
 if current_step_idx >= len(all_steps):
     st.success("🎉 3 輪任務已全數完成！")
@@ -140,9 +140,10 @@ else:
     current_date = datetime.today().date() + timedelta(days=1)
     idx = current_step_idx
     mush_done_in_step = current_step_mush_done
+    day = 0
     
-    # 往後推算 4 天的排程
-    for day in range(4):
+    # 只要還有任務沒解完，就會繼續列出每一天
+    while idx < len(all_steps):
         daily_quota = 3
         action_counter = 1
         day_html = f'<div class="day-title">📍 第 {day+1} 天 ({current_date.strftime("%m/%d")})</div>'
@@ -170,3 +171,4 @@ else:
             
         st.markdown(day_html, unsafe_allow_html=True)
         current_date += timedelta(days=1)
+        day += 1
